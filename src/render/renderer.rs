@@ -1,6 +1,7 @@
 use std::slice;
 
 use ash::vk;
+use glam::{Mat4, Vec3};
 
 use crate::{
     render::{frame::Frame, render_ctx},
@@ -117,6 +118,18 @@ unsafe fn render_frame_inner(ctx: &RenderCtx, current_frame: &Frame, _image_inde
         command_buffer,
         vk::PipelineBindPoint::GRAPHICS,
         ctx.pipeline,
+    );
+
+    *(current_frame.uniform_buffer.memory.unwrap() as *mut _) =
+        Mat4::from_scale(Vec3::new(2.0, 2.0, 1.0));
+
+    ctx.device_loader.cmd_bind_descriptor_sets(
+        command_buffer,
+        vk::PipelineBindPoint::GRAPHICS,
+        ctx.pipeline_layout,
+        0,
+        slice::from_ref(&current_frame.descriptor_set),
+        &[],
     );
 
     let viewport = vk::Viewport::default()

@@ -7,12 +7,16 @@ layout(triangles, max_vertices = 3, max_primitives = 1) out;
 
 layout(location = 0) out vec3[] outColors;
 
+layout(set = 0, binding = 0) uniform UBO {
+    mat4 finalMatrix;
+} ubo;
+
 void main() {
     gl_PrimitiveCountNV = 1;
 
-    gl_MeshVerticesNV[0].gl_Position = vec4(-0.5, -0.5, 0.0, 1.0);
-    gl_MeshVerticesNV[1].gl_Position = vec4(0.5, -0.5, 0.0, 1.0);
-    gl_MeshVerticesNV[2].gl_Position = vec4(0.0, 0.5, 0.0, 1.0);
+    gl_MeshVerticesNV[0].gl_Position = ubo.finalMatrix * vec4(-0.5, -0.5, 0.0, 1.0);
+    gl_MeshVerticesNV[1].gl_Position = ubo.finalMatrix * vec4(0.5, -0.5, 0.0, 1.0);
+    gl_MeshVerticesNV[2].gl_Position = ubo.finalMatrix * vec4(0.0, 0.5, 0.0, 1.0);
 
     outColors[0] = vec3(1.0, 0.0, 0.0);
     outColors[1] = vec3(0.0, 1.0, 0.0);

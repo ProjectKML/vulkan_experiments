@@ -39,16 +39,17 @@ pub struct RenderCtx {
     pub depth_image_allocation: Allocation,
     pub depth_image_view: vk::ImageView,
 
-    pub allocator: ManuallyDrop<Allocator>,
-
     pub swapchain_images: Vec<vk::Image>,
     pub swapchain_image_views: Vec<vk::ImageView>,
     pub framebuffers: Vec<vk::Framebuffer>,
 
+    pub descriptor_set_layout: vk::DescriptorSetLayout,
     pub pipeline_layout: vk::PipelineLayout,
     pub pipeline: vk::Pipeline,
 
     pub frames: Vec<ManuallyDrop<Frame>>,
+
+    pub allocator: ManuallyDrop<Arc<Allocator>>,
 }
 
 impl RenderCtx {
@@ -110,12 +111,14 @@ impl RenderCtx {
             let swapchain_loader = Swapchain::new(&instance_loader, &device_loader);
             let mesh_shader_loader = MeshShader::new(&instance_loader, &device_loader);
 
-            let allocator = Allocator::new(AllocatorCreateInfo::new(
-                &instance_loader,
-                &device_loader,
-                &physical_device,
-            ))
-            .unwrap();
+            let allocator = Arc::new(
+                Allocator::new(AllocatorCreateInfo::new(
+                    &instance_loader,
+                    &device_loader,
+                    &physical_device,
+                ))
+                .unwrap(),
+            );
             let direct_queue = device_loader.get_device_queue(0, 0);
 
             let swapchian_create_info = vk::SwapchainCreateInfoKHR::default()
@@ -187,8 +190,22 @@ impl RenderCtx {
             let fragment_shader =
                 util::create_shader_module(&device_loader, "example.frag.spv").unwrap();
 
+            let descriptor_set_layout_binding = vk::DescriptorSetLayoutBinding::default()
+                .descriptor_count(1)
+                .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
+                .stage_flags(vk::ShaderStageFlags::MESH_NV);
+
+            let descriptor_set_layout_create_info = vk::DescriptorSetLayoutCreateInfo::default()
+                .bindings(slice::from_ref(&descriptor_set_layout_binding));
+            let descriptor_set_layout = device_loader
+                .create_descriptor_set_layout(&descriptor_set_layout_create_info, None)
+                .unwrap();
+
             let pipeline_layout = device_loader
-                .create_pipeline_layout(&vk::PipelineLayoutCreateInfo::default(), None)
+                .create_pipeline_layout(
+                    &vk::PipelineLayoutCreateInfo::default().set_layouts(&[descriptor_set_layout]),
+                    None,
+                )
                 .unwrap();
             let pipeline = util::create_mesh_pipeline(
                 &device_loader,
@@ -205,7 +222,13 @@ impl RenderCtx {
 
             let frames: Vec<_> = (0..frame::NUM_FRAMES)
                 .into_iter()
-                .map(|_| ManuallyDrop::new(Frame::new(device_loader.clone())))
+                .map(|_| {
+                    ManuallyDrop::new(Frame::new(
+                        device_loader.clone(),
+                        allocator.clone(),
+                        descriptor_set_layout,
+                    ))
+                })
                 .collect();
 
             Self {
@@ -235,6 +258,7 @@ impl RenderCtx {
                 swapchain_image_views,
                 framebuffers,
 
+                descriptor_set_layout,
                 pipeline_layout,
                 pipeline,
 
@@ -256,6 +280,8 @@ impl Drop for RenderCtx {
             self.device_loader.destroy_pipeline(self.pipeline, None);
             self.device_loader
                 .destroy_pipeline_layout(self.pipeline_layout, None);
+            self.device_loader
+                .destroy_descriptor_set_layout(self.descriptor_set_layout, None);
 
             self.framebuffers
                 .iter()
@@ -271,10 +297,10 @@ impl Drop for RenderCtx {
             self.allocator
                 .destroy_image(self.depth_image, self.depth_image_allocation);
 
-            ManuallyDrop::drop(&mut self.allocator);
-
             self.swapchain_loader
                 .destroy_swapchain(self.swapchain, None);
+
+            ManuallyDrop::drop(&mut self.allocator);
 
             self.device_loader.destroy_device(None);
 

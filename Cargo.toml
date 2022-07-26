@@ -9,5 +9,6 @@ edition = "2021"
 anyhow = "1.0.57"
 ash = { git = "https://github.com/ProjectKML/ash" }
 ash-window = { git = "https://github.com/projectkml/ash" }
+glam = "0.21.2"
 winit = "0.26.1"
 vk-mem = { git = "https://github.com/ProjectKML/vk-mem-rs"}
