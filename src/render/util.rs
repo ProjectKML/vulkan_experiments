@@ -145,7 +145,7 @@ pub unsafe fn create_mesh_pipeline(
     let depth_stencil_state_create_info = vk::PipelineDepthStencilStateCreateInfo::default()
         .depth_test_enable(true)
         .depth_write_enable(true)
-        .depth_compare_op(vk::CompareOp::LESS_OR_EQUAL);
+        .depth_compare_op(vk::CompareOp::GREATER_OR_EQUAL);
 
     let multisample_state_create_info = vk::PipelineMultisampleStateCreateInfo::default()
         .rasterization_samples(vk::SampleCountFlags::TYPE_1);

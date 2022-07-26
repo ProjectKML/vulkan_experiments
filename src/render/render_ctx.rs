@@ -7,6 +7,7 @@ use ash::{
     },
     vk, Device, Entry, Instance,
 };
+use glam::Vec3;
 use vk_mem::{Allocation, Allocator, AllocatorCreateInfo};
 
 use winit::window::Window;
@@ -135,7 +136,7 @@ impl RenderCtx {
                 .image_sharing_mode(vk::SharingMode::EXCLUSIVE)
                 .pre_transform(vk::SurfaceTransformFlagsKHR::IDENTITY)
                 .composite_alpha(vk::CompositeAlphaFlagsKHR::OPAQUE)
-                .present_mode(vk::PresentModeKHR::IMMEDIATE);
+                .present_mode(vk::PresentModeKHR::FIFO);
 
             let swapchain = swapchain_loader
                 .create_swapchain(&swapchian_create_info, None)

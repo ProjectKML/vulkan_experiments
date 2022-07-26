@@ -1,14 +1,17 @@
+use std::collections::HashSet;
 use std::slice;
 
 use ash::vk;
 use glam::{Mat4, Vec3};
+use winit::event::VirtualKeyCode;
 
+use crate::render::Camera;
 use crate::{
     render::{frame::Frame, render_ctx},
     RenderCtx,
 };
 
-pub unsafe fn render_frame(ctx: &RenderCtx, frame_index: &mut usize) {
+pub unsafe fn render_frame(ctx: &RenderCtx, frame_index: &mut usize, camera: &Camera) {
     let device_loader = &ctx.device_loader;
     let direct_queue = ctx.direct_queue;
     let swapchain_loader = &ctx.swapchain_loader;
@@ -82,7 +85,7 @@ pub unsafe fn render_frame(ctx: &RenderCtx, frame_index: &mut usize) {
         vk::SubpassContents::INLINE,
     );
 
-    render_frame_inner(ctx, current_frame, image_index as usize);
+    render_frame_inner(ctx, current_frame, image_index as usize, camera);
 
     device_loader.cmd_end_render_pass(command_buffer);
 
@@ -111,7 +114,17 @@ pub unsafe fn render_frame(ctx: &RenderCtx, frame_index: &mut usize) {
         .unwrap();
 }
 
-unsafe fn render_frame_inner(ctx: &RenderCtx, current_frame: &Frame, _image_index: usize) {
+unsafe fn render_frame_inner(
+    ctx: &RenderCtx,
+    current_frame: &Frame,
+    _image_index: usize,
+    camera: &Camera,
+) {
+    let delta: f32 = 1.0f32 / 165.0f32; //TODO: pls dont do this in production project, we have to calculate this l8er
+
+    *(current_frame.uniform_buffer.memory.unwrap() as *mut _) = camera.view_projection_matrix;
+    //*(current_frame.uniform_buffer.memory.unwrap() as *mut _) = Mat4::from_scale(Vec3::new(2.0, 2.0, 1.0));
+
     let command_buffer = current_frame.command_buffer;
 
     ctx.device_loader.cmd_bind_pipeline(
@@ -119,9 +132,6 @@ unsafe fn render_frame_inner(ctx: &RenderCtx, current_frame: &Frame, _image_inde
         vk::PipelineBindPoint::GRAPHICS,
         ctx.pipeline,
     );
-
-    *(current_frame.uniform_buffer.memory.unwrap() as *mut _) =
-        Mat4::from_scale(Vec3::new(2.0, 2.0, 1.0));
 
     ctx.device_loader.cmd_bind_descriptor_sets(
         command_buffer,
