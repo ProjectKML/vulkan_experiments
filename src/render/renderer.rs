@@ -10,6 +10,7 @@ use crate::{
     render::{frame::Frame, render_ctx},
     RenderCtx,
 };
+use crate::render::render_ctx::{HEIGHT, WIDTH};
 
 pub unsafe fn render_frame(ctx: &RenderCtx, frame_index: &mut usize, camera: &Camera) {
     let device_loader = &ctx.device_loader;
@@ -53,41 +54,86 @@ pub unsafe fn render_frame(ctx: &RenderCtx, frame_index: &mut usize, camera: &Ca
         .begin_command_buffer(command_buffer, &command_buffer_begin_info)
         .unwrap();
 
-    let clear_values = [
-        vk::ClearValue {
+    let image = ctx.swapchain_images[image_index as usize];
+
+    let barrier = vk::ImageMemoryBarrier::default()
+        .dst_access_mask(vk::AccessFlags::COLOR_ATTACHMENT_WRITE)
+        .old_layout(vk::ImageLayout::UNDEFINED)
+        .new_layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
+        .image(image)
+        .subresource_range(
+            vk::ImageSubresourceRange::default()
+                .aspect_mask(vk::ImageAspectFlags::COLOR)
+                .layer_count(1)
+                .level_count(1),
+        );
+
+    device_loader.cmd_pipeline_barrier(
+        command_buffer,
+        vk::PipelineStageFlags::TOP_OF_PIPE,
+        vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
+        vk::DependencyFlags::empty(),
+        &[],
+        &[],
+        slice::from_ref(&barrier),
+    );
+
+    let color_attachment = vk::RenderingAttachmentInfo::default()
+        .image_view(ctx.swapchain_image_views[image_index as usize])
+        .image_layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
+        .load_op(vk::AttachmentLoadOp::CLEAR)
+        .store_op(vk::AttachmentStoreOp::STORE)
+        .clear_value(vk::ClearValue {
             color: vk::ClearColorValue {
                 float32: [100.0 / 255.0, 149.0 / 255.0, 237.0 / 255.0, 1.0],
             },
-        },
-        vk::ClearValue {
+        });
+
+    let depth_attachment = vk::RenderingAttachmentInfo::default()
+        .image_view(ctx.depth_image_view)
+        .image_layout(vk::ImageLayout::DEPTH_ATTACHMENT_OPTIMAL)
+        .load_op(vk::AttachmentLoadOp::CLEAR)
+        .store_op(vk::AttachmentStoreOp::DONT_CARE) //we dont need it atm
+        .clear_value(vk::ClearValue {
             depth_stencil: vk::ClearDepthStencilValue {
                 depth: 0.0,
                 stencil: 0,
             },
-        },
-    ];
+        });
 
-    let render_pass_begin_info = vk::RenderPassBeginInfo::default()
-        .render_pass(ctx.render_pass)
-        .framebuffer(ctx.framebuffers[image_index as usize])
-        .render_area(
-            vk::Rect2D::default().extent(
-                vk::Extent2D::default()
-                    .width(render_ctx::WIDTH)
-                    .height(render_ctx::HEIGHT),
-            ),
-        )
-        .clear_values(&clear_values);
+    let rendering_info = vk::RenderingInfo::default()
+        .render_area(vk::Rect2D::default().extent(vk::Extent2D::default().width(WIDTH).height(HEIGHT)))
+        .layer_count(1)
+        .color_attachments(slice::from_ref(&color_attachment))
+        .depth_attachment(&depth_attachment);
 
-    device_loader.cmd_begin_render_pass(
-        command_buffer,
-        &render_pass_begin_info,
-        vk::SubpassContents::INLINE,
-    );
+    device_loader.cmd_begin_rendering(command_buffer, &rendering_info);
 
     render_frame_inner(ctx, current_frame, image_index as usize, camera);
 
-    device_loader.cmd_end_render_pass(command_buffer);
+    device_loader.cmd_end_rendering(command_buffer);
+
+    let barrier = vk::ImageMemoryBarrier::default()
+        .src_access_mask(vk::AccessFlags::COLOR_ATTACHMENT_WRITE)
+        .old_layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
+        .new_layout(vk::ImageLayout::PRESENT_SRC_KHR)
+        .image(image)
+        .subresource_range(
+            vk::ImageSubresourceRange::default()
+                .aspect_mask(vk::ImageAspectFlags::COLOR)
+                .layer_count(1)
+                .level_count(1),
+        );
+
+    device_loader.cmd_pipeline_barrier(
+        command_buffer,
+        vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
+        vk::PipelineStageFlags::BOTTOM_OF_PIPE,
+        vk::DependencyFlags::empty(),
+        &[],
+        &[],
+        slice::from_ref(&barrier),
+    );
 
     device_loader.end_command_buffer(command_buffer).unwrap();
 
@@ -120,10 +166,7 @@ unsafe fn render_frame_inner(
     _image_index: usize,
     camera: &Camera,
 ) {
-    let delta: f32 = 1.0f32 / 165.0f32; //TODO: pls dont do this in production project, we have to calculate this l8er
-
     *(current_frame.uniform_buffer.memory.unwrap() as *mut _) = camera.view_projection_matrix;
-    //*(current_frame.uniform_buffer.memory.unwrap() as *mut _) = Mat4::from_scale(Vec3::new(2.0, 2.0, 1.0));
 
     let command_buffer = current_frame.command_buffer;
 

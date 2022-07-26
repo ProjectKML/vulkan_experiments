@@ -34,15 +34,12 @@ pub struct RenderCtx {
     pub direct_queue: vk::Queue,
     pub swapchain: vk::SwapchainKHR,
 
-    pub render_pass: vk::RenderPass,
-
     pub depth_image: vk::Image,
     pub depth_image_allocation: Allocation,
     pub depth_image_view: vk::ImageView,
 
     pub swapchain_images: Vec<vk::Image>,
     pub swapchain_image_views: Vec<vk::ImageView>,
-    pub framebuffers: Vec<vk::Framebuffer>,
 
     pub descriptor_set_layout: vk::DescriptorSetLayout,
     pub pipeline_layout: vk::PipelineLayout,
@@ -91,6 +88,11 @@ impl RenderCtx {
             let device_extensions = [Swapchain::name().as_ptr(), MeshShader::name().as_ptr()];
 
             let physical_device_features = vk::PhysicalDeviceFeatures::default();
+
+            let mut physical_device_dynamic_rendering_features =
+                vk::PhysicalDeviceDynamicRenderingFeatures::default().dynamic_rendering(true);
+            //TODO: next?
+
             let mut physical_device_mesh_shader_features =
                 vk::PhysicalDeviceMeshShaderFeaturesNV::default()
                     .task_shader(true)
@@ -98,7 +100,8 @@ impl RenderCtx {
 
             let mut physical_device_features = vk::PhysicalDeviceFeatures2::default()
                 .features(physical_device_features)
-                .push_next(&mut physical_device_mesh_shader_features);
+                .push_next(&mut physical_device_mesh_shader_features)
+                .push_next(&mut physical_device_dynamic_rendering_features);
 
             let device_create_info = vk::DeviceCreateInfo::default()
                 .push_next(&mut physical_device_features)
@@ -143,8 +146,6 @@ impl RenderCtx {
                 .unwrap();
             let swapchain_images = swapchain_loader.get_swapchain_images(swapchain).unwrap();
 
-            let render_pass =
-                util::create_render_pass(&device_loader, SWAPCHAIN_FORMAT, DEPTH_FORMAT).unwrap();
             let (depth_image, depth_image_allocation, depth_image_view) =
                 util::create_depth_image(&device_loader, &allocator, WIDTH, HEIGHT, DEPTH_FORMAT)
                     .unwrap();
@@ -165,23 +166,6 @@ impl RenderCtx {
                         );
 
                     device_loader.create_image_view(&image_view_create_info, None)
-                })
-                .collect::<Result<Vec<_>, _>>()
-                .unwrap();
-
-            let framebuffers = swapchain_image_views
-                .iter()
-                .map(|image_view| {
-                    let attachments = [*image_view, depth_image_view];
-
-                    let framebuffer_create_info = vk::FramebufferCreateInfo::default()
-                        .render_pass(render_pass)
-                        .attachments(&attachments)
-                        .width(WIDTH)
-                        .height(HEIGHT)
-                        .layers(1);
-
-                    device_loader.create_framebuffer(&framebuffer_create_info, None)
                 })
                 .collect::<Result<Vec<_>, _>>()
                 .unwrap();
@@ -213,7 +197,6 @@ impl RenderCtx {
                 mesh_shader,
                 None,
                 fragment_shader,
-                render_pass,
                 pipeline_layout,
             )
             .unwrap();
@@ -249,15 +232,12 @@ impl RenderCtx {
                 direct_queue,
                 swapchain,
 
-                render_pass,
-
                 depth_image,
                 depth_image_allocation,
                 depth_image_view,
 
                 swapchain_images,
                 swapchain_image_views,
-                framebuffers,
 
                 descriptor_set_layout,
                 pipeline_layout,
@@ -284,11 +264,6 @@ impl Drop for RenderCtx {
             self.device_loader
                 .destroy_descriptor_set_layout(self.descriptor_set_layout, None);
 
-            self.framebuffers
-                .iter()
-                .for_each(|framebuffer| self.device_loader.destroy_framebuffer(*framebuffer, None));
-            self.device_loader
-                .destroy_render_pass(self.render_pass, None);
             self.swapchain_image_views
                 .iter()
                 .for_each(|image_view| self.device_loader.destroy_image_view(*image_view, None));

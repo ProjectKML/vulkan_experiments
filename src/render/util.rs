@@ -1,47 +1,9 @@
 use std::{ffi::CStr, fs::File, io::Read, path::Path, slice};
 
+use crate::render::render_ctx::{DEPTH_FORMAT, SWAPCHAIN_FORMAT};
 use anyhow::Result;
 use ash::{prelude::VkResult, vk, Device};
 use vk_mem::{Allocation, AllocationCreateInfo, Allocator, MemoryUsage};
-
-pub fn create_render_pass(
-    device: &Device,
-    color_format: vk::Format,
-    depth_format: vk::Format,
-) -> VkResult<vk::RenderPass> {
-    let attachment_descriptions = [
-        vk::AttachmentDescription::default()
-            .format(color_format)
-            .samples(vk::SampleCountFlags::TYPE_1)
-            .load_op(vk::AttachmentLoadOp::CLEAR)
-            .store_op(vk::AttachmentStoreOp::STORE)
-            .initial_layout(vk::ImageLayout::UNDEFINED)
-            .final_layout(vk::ImageLayout::PRESENT_SRC_KHR),
-        vk::AttachmentDescription::default()
-            .format(depth_format)
-            .samples(vk::SampleCountFlags::TYPE_1)
-            .load_op(vk::AttachmentLoadOp::CLEAR)
-            .store_op(vk::AttachmentStoreOp::DONT_CARE)
-            .initial_layout(vk::ImageLayout::UNDEFINED)
-            .final_layout(vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL),
-    ];
-
-    let color_attachment_reference =
-        vk::AttachmentReference::default().layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL);
-    let depth_attachment_reference = vk::AttachmentReference::default()
-        .attachment(1)
-        .layout(vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
-
-    let subpass_description = vk::SubpassDescription::default()
-        .color_attachments(slice::from_ref(&color_attachment_reference))
-        .depth_stencil_attachment(&depth_attachment_reference);
-
-    let render_pass_create_info = vk::RenderPassCreateInfo::default()
-        .attachments(&attachment_descriptions)
-        .subpasses(slice::from_ref(&subpass_description));
-
-    unsafe { device.create_render_pass(&render_pass_create_info, None) }
-}
 
 pub fn create_depth_image(
     device: &Device,
@@ -100,9 +62,12 @@ pub unsafe fn create_mesh_pipeline(
     mesh_shader: vk::ShaderModule,
     task_shader: Option<vk::ShaderModule>,
     fragment_shader: vk::ShaderModule,
-    render_pass: vk::RenderPass,
     layout: vk::PipelineLayout,
 ) -> Result<vk::Pipeline> {
+    let mut pipeline_rendering_create_info = vk::PipelineRenderingCreateInfo::default()
+        .color_attachment_formats(&[SWAPCHAIN_FORMAT])
+        .depth_attachment_format(DEPTH_FORMAT);
+
     let mut shader_stage_create_infos = vec![
         vk::PipelineShaderStageCreateInfo::default()
             .stage(vk::ShaderStageFlags::MESH_NV)
@@ -170,7 +135,7 @@ pub unsafe fn create_mesh_pipeline(
         .color_blend_state(&color_blend_state_create_info)
         .dynamic_state(&dynamic_state_create_info)
         .layout(layout)
-        .render_pass(render_pass);
+        .push_next(&mut pipeline_rendering_create_info);
 
     Ok(device
         .create_graphics_pipelines(
