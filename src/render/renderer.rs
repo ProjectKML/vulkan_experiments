@@ -5,12 +5,12 @@ use ash::vk;
 use glam::{Mat4, Vec3};
 use winit::event::VirtualKeyCode;
 
+use crate::render::render_ctx::{HEIGHT, WIDTH};
 use crate::render::Camera;
 use crate::{
     render::{frame::Frame, render_ctx},
     RenderCtx,
 };
-use crate::render::render_ctx::{HEIGHT, WIDTH};
 
 pub unsafe fn render_frame(ctx: &RenderCtx, frame_index: &mut usize, camera: &Camera) {
     let device_loader = &ctx.device_loader;
@@ -102,7 +102,9 @@ pub unsafe fn render_frame(ctx: &RenderCtx, frame_index: &mut usize, camera: &Ca
         });
 
     let rendering_info = vk::RenderingInfo::default()
-        .render_area(vk::Rect2D::default().extent(vk::Extent2D::default().width(WIDTH).height(HEIGHT)))
+        .render_area(
+            vk::Rect2D::default().extent(vk::Extent2D::default().width(WIDTH).height(HEIGHT)),
+        )
         .layer_count(1)
         .color_attachments(slice::from_ref(&color_attachment))
         .depth_attachment(&depth_attachment);
