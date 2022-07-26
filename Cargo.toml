@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.57"
-ash = "0.37.0+1.3.209"
-ash-window = "0.10.0"
-gpu-allocator = "0.18.0"
+ash = { git = "https://github.com/ProjectKML/ash" }
+ash-window = { git = "https://github.com/projectkml/ash" }
 winit = "0.26.1"
+vk-mem = { git = "https://github.com/ProjectKML/vk-mem-rs"}

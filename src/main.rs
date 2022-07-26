@@ -3,7 +3,7 @@ use winit::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     platform::run_return::EventLoopExtRunReturn,
-    window::WindowBuilder
+    window::WindowBuilder,
 };
 
 use crate::render::{render_ctx::RenderCtx, renderer};

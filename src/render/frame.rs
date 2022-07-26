@@ -11,7 +11,7 @@ pub struct Frame {
 
     pub fence: vk::Fence,
 
-    device: Arc<Device>
+    device: Arc<Device>,
 }
 
 pub const NUM_FRAMES: usize = 2;
@@ -19,23 +19,34 @@ pub const NUM_FRAMES: usize = 2;
 impl Frame {
     pub fn new(device: Arc<Device>) -> Self {
         unsafe {
-            let command_pool_create_info = vk::CommandPoolCreateInfo::builder().flags(vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER).queue_family_index(0);
+            let command_pool_create_info = vk::CommandPoolCreateInfo::default()
+                .flags(vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER)
+                .queue_family_index(0);
 
-            let command_pool = device.create_command_pool(&command_pool_create_info, None).unwrap();
+            let command_pool = device
+                .create_command_pool(&command_pool_create_info, None)
+                .unwrap();
 
-            let command_buffer_allocate_info = vk::CommandBufferAllocateInfo::builder()
+            let command_buffer_allocate_info = vk::CommandBufferAllocateInfo::default()
                 .command_pool(command_pool)
                 .level(vk::CommandBufferLevel::PRIMARY)
                 .command_buffer_count(1);
 
-            let command_buffer = device.allocate_command_buffers(&command_buffer_allocate_info).unwrap()[0];
+            let command_buffer = device
+                .allocate_command_buffers(&command_buffer_allocate_info)
+                .unwrap()[0];
 
-            let semaphore_create_info = vk::SemaphoreCreateInfo::builder();
+            let semaphore_create_info = vk::SemaphoreCreateInfo::default();
 
-            let present_semaphore = device.create_semaphore(&semaphore_create_info, None).unwrap();
-            let render_semaphore = device.create_semaphore(&semaphore_create_info, None).unwrap();
+            let present_semaphore = device
+                .create_semaphore(&semaphore_create_info, None)
+                .unwrap();
+            let render_semaphore = device
+                .create_semaphore(&semaphore_create_info, None)
+                .unwrap();
 
-            let fence_create_info = vk::FenceCreateInfo::builder().flags(vk::FenceCreateFlags::SIGNALED);
+            let fence_create_info =
+                vk::FenceCreateInfo::default().flags(vk::FenceCreateFlags::SIGNALED);
 
             let fence = device.create_fence(&fence_create_info, None).unwrap();
 
@@ -48,7 +59,7 @@ impl Frame {
 
                 fence,
 
-                device
+                device,
             }
         }
     }
@@ -62,7 +73,8 @@ impl Drop for Frame {
             self.device.destroy_semaphore(self.render_semaphore, None);
             self.device.destroy_semaphore(self.present_semaphore, None);
 
-            self.device.free_command_buffers(self.command_pool, slice::from_ref(&self.command_buffer));
+            self.device
+                .free_command_buffers(self.command_pool, slice::from_ref(&self.command_buffer));
             self.device.destroy_command_pool(self.command_pool, None);
         }
     }
