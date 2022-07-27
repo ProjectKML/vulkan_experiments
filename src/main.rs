@@ -40,13 +40,9 @@ fn main() {
                 Event::WindowEvent { event, window_id } => {
                     if window.id() == window_id {
                         match event {
-                            WindowEvent::Resized(size) => {} //TODO: handle
+                            WindowEvent::Resized(_) => {} //TODO: handle
                             WindowEvent::CloseRequested => running = false,
-                            WindowEvent::KeyboardInput {
-                                device_id,
-                                input,
-                                is_synthetic,
-                            } => {
+                            WindowEvent::KeyboardInput { input, .. } => {
                                 if let Some(key_code) = input.virtual_keycode {
                                     if key_code == VirtualKeyCode::Escape {
                                         running = false;
@@ -73,7 +69,7 @@ fn main() {
                 Event::MainEventsCleared => {
                     *control_flow = ControlFlow::Exit;
                 }
-                Event::DeviceEvent { device_id, event } => match event {
+                Event::DeviceEvent { event, .. } => match event {
                     DeviceEvent::MouseMotion { delta } => {
                         camera.move_mouse(delta.0, delta.1);
                     }

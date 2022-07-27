@@ -1,9 +1,6 @@
-use std::collections::HashSet;
 use std::slice;
 
 use ash::vk;
-use glam::{Mat4, Vec3};
-use winit::event::VirtualKeyCode;
 
 use crate::render::render_ctx::{HEIGHT, WIDTH};
 use crate::render::Camera;
@@ -56,8 +53,10 @@ pub unsafe fn render_frame(ctx: &RenderCtx, frame_index: &mut usize, camera: &Ca
 
     let image = ctx.swapchain_images[image_index as usize];
 
-    let barrier = vk::ImageMemoryBarrier::default()
-        .dst_access_mask(vk::AccessFlags::COLOR_ATTACHMENT_WRITE)
+    let barrier = vk::ImageMemoryBarrier2::default()
+        .src_stage_mask(vk::PipelineStageFlags2::TOP_OF_PIPE)
+        .dst_stage_mask(vk::PipelineStageFlags2::COLOR_ATTACHMENT_OUTPUT)
+        .dst_access_mask(vk::AccessFlags2::COLOR_ATTACHMENT_WRITE)
         .old_layout(vk::ImageLayout::UNDEFINED)
         .new_layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
         .image(image)
@@ -68,14 +67,9 @@ pub unsafe fn render_frame(ctx: &RenderCtx, frame_index: &mut usize, camera: &Ca
                 .level_count(1),
         );
 
-    device_loader.cmd_pipeline_barrier(
+    device_loader.cmd_pipeline_barrier2(
         command_buffer,
-        vk::PipelineStageFlags::TOP_OF_PIPE,
-        vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
-        vk::DependencyFlags::empty(),
-        &[],
-        &[],
-        slice::from_ref(&barrier),
+        &vk::DependencyInfo::default().image_memory_barriers(slice::from_ref(&barrier)),
     );
 
     let color_attachment = vk::RenderingAttachmentInfo::default()
@@ -115,8 +109,10 @@ pub unsafe fn render_frame(ctx: &RenderCtx, frame_index: &mut usize, camera: &Ca
 
     device_loader.cmd_end_rendering(command_buffer);
 
-    let barrier = vk::ImageMemoryBarrier::default()
-        .src_access_mask(vk::AccessFlags::COLOR_ATTACHMENT_WRITE)
+    let barrier = vk::ImageMemoryBarrier2::default()
+        .src_stage_mask(vk::PipelineStageFlags2::COLOR_ATTACHMENT_OUTPUT)
+        .src_access_mask(vk::AccessFlags2::COLOR_ATTACHMENT_WRITE)
+        .dst_stage_mask(vk::PipelineStageFlags2::BOTTOM_OF_PIPE)
         .old_layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
         .new_layout(vk::ImageLayout::PRESENT_SRC_KHR)
         .image(image)
@@ -127,14 +123,9 @@ pub unsafe fn render_frame(ctx: &RenderCtx, frame_index: &mut usize, camera: &Ca
                 .level_count(1),
         );
 
-    device_loader.cmd_pipeline_barrier(
+    device_loader.cmd_pipeline_barrier2(
         command_buffer,
-        vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
-        vk::PipelineStageFlags::BOTTOM_OF_PIPE,
-        vk::DependencyFlags::empty(),
-        &[],
-        &[],
-        slice::from_ref(&barrier),
+        &vk::DependencyInfo::default().image_memory_barriers(slice::from_ref(&barrier)),
     );
 
     device_loader.end_command_buffer(command_buffer).unwrap();

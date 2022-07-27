@@ -7,7 +7,7 @@ use ash::{
     },
     vk, Device, Entry, Instance,
 };
-use glam::Vec3;
+
 use vk_mem::{Allocation, Allocator, AllocatorCreateInfo};
 
 use winit::window::Window;
@@ -93,6 +93,9 @@ impl RenderCtx {
                 vk::PhysicalDeviceDynamicRenderingFeatures::default().dynamic_rendering(true);
             //TODO: next?
 
+            let mut physical_device_synchronization2_features =
+                vk::PhysicalDeviceSynchronization2Features::default().synchronization2(true);
+
             let mut physical_device_mesh_shader_features =
                 vk::PhysicalDeviceMeshShaderFeaturesNV::default()
                     .task_shader(true)
@@ -101,7 +104,8 @@ impl RenderCtx {
             let mut physical_device_features = vk::PhysicalDeviceFeatures2::default()
                 .features(physical_device_features)
                 .push_next(&mut physical_device_mesh_shader_features)
-                .push_next(&mut physical_device_dynamic_rendering_features);
+                .push_next(&mut physical_device_dynamic_rendering_features)
+                .push_next(&mut physical_device_synchronization2_features);
 
             let device_create_info = vk::DeviceCreateInfo::default()
                 .push_next(&mut physical_device_features)

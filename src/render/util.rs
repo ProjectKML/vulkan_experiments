@@ -2,7 +2,7 @@ use std::{ffi::CStr, fs::File, io::Read, path::Path, slice};
 
 use crate::render::render_ctx::{DEPTH_FORMAT, SWAPCHAIN_FORMAT};
 use anyhow::Result;
-use ash::{prelude::VkResult, vk, Device};
+use ash::{vk, Device};
 use vk_mem::{Allocation, AllocationCreateInfo, Allocator, MemoryUsage};
 
 pub fn create_depth_image(
